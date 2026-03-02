@@ -41,11 +41,13 @@ def get_settings_file_path():
 def get_default_settings():
     return {
         'hotkeys': {i: f'ctrl+alt+{i+5}' for i in range(5)},
-        'timers': [{'minutes': '00', 'seconds': '00', 'message': '輸入語音內容', 'notify_os': False, 'play_voice': True} for _ in range(5)]
+        'timers': [{'hours': '00', 'minutes': '00', 'seconds': '00', 'message': '輸入語音內容', 'notify_os': False, 'play_voice': True} for _ in range(5)]
     }
 
 def migrate_old_settings(settings):
     for i in range(5):
+         if 'hours' not in settings['timers'][i]:
+              settings['timers'][i]['hours'] = '00'
          if 'notify_os' not in settings['timers'][i]:
               settings['timers'][i]['notify_os'] = False
          if 'play_voice' not in settings['timers'][i]:

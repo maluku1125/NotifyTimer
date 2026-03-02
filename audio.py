@@ -1,7 +1,32 @@
 import tempfile
 import pygame
 import os
+import sys
 from gtts import gTTS
+
+
+def _resource_path(relative_path):
+    """取得資源的絕對路徑（支援 PyInstaller 打包後的環境）。"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+
+def play_ding_sound():
+    """播放 ding.wav 音效。"""
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        ding_path = _resource_path('ding.wav')
+        sound = pygame.mixer.Sound(ding_path)
+        sound.set_volume(0.2)
+        sound.play()
+        # 等待播放完畢
+        while pygame.mixer.get_busy():
+            pygame.time.Clock().tick(10)
+    except Exception as e:
+        print(f"Error playing ding sound: {e}")
+
 
 def play_text_to_speech(message, lang='zh-tw'):
     try:

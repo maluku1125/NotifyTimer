@@ -1,13 +1,16 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from PIL import Image, ImageTk
 import keyboard
 import threading
 import sv_ttk
 import webbrowser
+import sys
+import os
 
 import config
 from timer_core import TimerCore
-from audio import play_text_to_speech
+from audio import play_text_to_speech, play_ding_sound
 from notifier import send_windows_notification
 
 class TimerRow:
@@ -16,6 +19,7 @@ class TimerRow:
         self.app = app
         self.core = TimerCore(index)
         
+        self.hour_var = tk.StringVar(value=settings.get('hours', '00'))
         self.minute_var = tk.StringVar(value=settings.get('minutes', '00'))
         self.second_var = tk.StringVar(value=settings.get('seconds', '00'))
         self.message_var = tk.StringVar(value=settings.get('message', '輸入語音內容'))
@@ -28,18 +32,24 @@ class TimerRow:
         self.center_frame = ttk.Frame(self.frame)
         self.center_frame.pack(anchor='center')
         
-        ttk.Label(self.center_frame, text=f"計時器 {index+1}", font=app.font_bold, foreground="#56b6c2").pack(side='left', padx=(0, 15))
+        ttk.Label(self.center_frame, text=f"計時器 {index+1}", font=app.font_bold, foreground="#56b6c2").pack(side='left', padx=(0, 10))
+        
+        self.entry_hour = ttk.Entry(self.center_frame, width=3, textvariable=self.hour_var, justify='center', font=app.font)
+        self.entry_hour.pack(side='left')
+        ttk.Label(self.center_frame, text="時", font=app.font).pack(side='left', padx=3)
         
         self.entry_minute = ttk.Entry(self.center_frame, width=3, textvariable=self.minute_var, justify='center', font=app.font)
         self.entry_minute.pack(side='left')
-        ttk.Label(self.center_frame, text="分", font=app.font).pack(side='left', padx=5)
+        ttk.Label(self.center_frame, text="分", font=app.font).pack(side='left', padx=3)
         
         self.entry_second = ttk.Entry(self.center_frame, width=3, textvariable=self.second_var, justify='center', font=app.font)
         self.entry_second.pack(side='left')
-        ttk.Label(self.center_frame, text="秒", font=app.font).pack(side='left', padx=(5, 15))
+        ttk.Label(self.center_frame, text="秒", font=app.font).pack(side='left', padx=(3, 10))
         
         ttk.Label(self.center_frame, text="提醒內容:", font=app.font, foreground="#9da5b4").pack(side='left', padx=(0, 5))
-        self.entry_message = ttk.Entry(self.center_frame, width=15, textvariable=self.message_var, font=app.font)
+        # 限制提醒內容最多 20 個字元
+        vcmd = (app.root.register(lambda text: len(text) <= 20), '%P')
+        self.entry_message = ttk.Entry(self.center_frame, width=15, textvariable=self.message_var, font=app.font, validate='key', validatecommand=vcmd)
         self.entry_message.pack(side='left', padx=2)
         
         self.check_voice = ttk.Checkbutton(self.center_frame, text="語音", variable=self.play_voice_var, style="Toggle.TButton")
@@ -60,16 +70,18 @@ class TimerRow:
         if self.core.running:
             return
             
+        h = self.hour_var.get()
         m = self.minute_var.get()
         s = self.second_var.get()
         msg = self.message_var.get()
         
-        if self.core.start(m, s, msg):
+        if self.core.start(h, m, s, msg):
             self.update_ui_state()
             self.app.save_current_settings()
             
     def stop(self):
         self.core.stop()
+        self.hour_var.set(self.core.original_hours)
         self.minute_var.set(self.core.original_minutes)
         self.second_var.set(self.core.original_seconds)
         self.update_ui_state()
@@ -82,6 +94,7 @@ class TimerRow:
         
         if remaining <= 0:
             self.core.stop()
+            self.hour_var.set(self.core.original_hours)
             self.minute_var.set(self.core.original_minutes)
             self.second_var.set(self.core.original_seconds)
             self.update_ui_state()
@@ -92,7 +105,8 @@ class TimerRow:
             
             threading.Thread(target=self.play_alarm, args=(msg, do_notify, do_voice), daemon=True).start()
         else:
-            mins_str, secs_str = self.core.get_remaining_time_formatted()
+            hrs_str, mins_str, secs_str = self.core.get_remaining_time_formatted()
+            self.hour_var.set(hrs_str)
             self.minute_var.set(mins_str)
             self.second_var.set(secs_str)
             
@@ -101,10 +115,14 @@ class TimerRow:
             send_windows_notification("倒數計時結束！", message)
             
         if do_voice:
-            play_text_to_speech(message)
+            if not message or not message.strip():
+                play_ding_sound()
+            else:
+                play_text_to_speech(message)
 
     def update_ui_state(self):
         if self.core.running:
+            self.entry_hour.state(['disabled'])
             self.entry_minute.state(['disabled'])
             self.entry_second.state(['disabled'])
             self.entry_message.state(['disabled'])
@@ -112,6 +130,7 @@ class TimerRow:
             self.check_notify.state(['disabled'])
             self.start_button.state(['disabled'])
         else:
+            self.entry_hour.state(['!disabled'])
             self.entry_minute.state(['!disabled'])
             self.entry_second.state(['!disabled'])
             self.entry_message.state(['!disabled'])
@@ -121,6 +140,7 @@ class TimerRow:
             
     def get_settings(self):
         return {
+            'hours': self.core.original_hours if self.core.running else self.hour_var.get(),
             'minutes': self.core.original_minutes if self.core.running else self.minute_var.get(),
             'seconds': self.core.original_seconds if self.core.running else self.second_var.get(),
             'message': self.core.message if self.core.running else self.message_var.get(),
@@ -130,11 +150,27 @@ class TimerRow:
 
 
 class TimerApp:
+    @staticmethod
+    def _resource_path(relative_path):
+        """取得資源的絕對路徑（支援 PyInstaller 打包後的環境）。"""
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
     def __init__(self, root):
         self.root = root
-        self.root.title("NotifyTimer - 倒計時提醒 V2.0.0")
+        self.root.title("NotifyTimer - 倒計時提醒 V2.1.0")
         self.root.geometry("920x450")
         self.root.resizable(False, False)
+        
+        # 設定視窗圖標（標題列 + 工作列）
+        icon_path = self._resource_path('bug.ico')
+        if os.path.exists(icon_path):
+            self.root.iconbitmap(icon_path)
+            # 用 wm_iconphoto 確保工作列圖標也顯示正確
+            img = Image.open(icon_path)
+            photo = ImageTk.PhotoImage(img)
+            self.root.wm_iconphoto(True, photo)
         
         self.font = ("Microsoft JhengHei", 12)
         self.font_bold = ("Microsoft JhengHei", 12, "bold")

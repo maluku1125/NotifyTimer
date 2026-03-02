@@ -5,22 +5,24 @@ class TimerCore:
         self.index = index
         self.running = False
         self.target_time = 0
+        self.original_hours = "00"
         self.original_minutes = "00"
         self.original_seconds = "00"
         self.message = ""
 
-    def start(self, minutes, seconds, message):
+    def start(self, hours, minutes, seconds, message):
         if self.running:
             return False
 
         try:
-            total_seconds = int(minutes) * 60 + int(seconds)
+            total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
         except ValueError:
             total_seconds = 0
             
         if total_seconds <= 0:
              return False
 
+        self.original_hours = hours
         self.original_minutes = minutes
         self.original_seconds = seconds
         self.message = message
@@ -38,8 +40,10 @@ class TimerCore:
         
     def get_remaining_time_formatted(self):
         remaining = self.get_remaining_time()
-        mins, secs = divmod(int(remaining), 60)
-        return f"{mins:02d}", f"{secs:02d}"
+        total_secs = int(remaining)
+        hours, remainder = divmod(total_secs, 3600)
+        mins, secs = divmod(remainder, 60)
+        return f"{hours:02d}", f"{mins:02d}", f"{secs:02d}"
 
     def reset(self):
         self.running = False
