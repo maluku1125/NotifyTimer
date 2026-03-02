@@ -27,7 +27,7 @@ class TimerRow:
         self.play_voice_var = tk.BooleanVar(value=settings.get('play_voice', True))
         
         self.frame = ttk.Frame(parent_tab)
-        self.frame.pack(fill='x', pady=12)
+        self.frame.pack(fill='x', pady=4)
         
         self.center_frame = ttk.Frame(self.frame)
         self.center_frame.pack(anchor='center')
@@ -159,8 +159,8 @@ class TimerApp:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("NotifyTimer - 倒計時提醒 V2.1.0")
-        self.root.geometry("920x450")
+        self.root.title("NotifyTimer - 倒計時提醒 V2.2.0")
+        self.root.geometry("925x300")
         self.root.resizable(False, False)
         
         # 設定視窗圖標（標題列 + 工作列）
@@ -201,24 +201,26 @@ class TimerApp:
         style.configure('TNotebook.Tab', font=self.font_bold, padding=[10, 5])
 
     def setup_ui(self):
-        header = ttk.Frame(self.root, padding=(20, 15))
-        header.pack(fill='x')
-        ttk.Label(header, text="NotifyTimer", font=self.font_title).pack(side='left')
-    
-        main_container = ttk.Frame(self.root, padding=(20, 0))
-        main_container.pack(fill='both', expand=True)
-        
-        notebook = ttk.Notebook(main_container)
+        self.is_compact = False
+
+        self.main_container = ttk.Frame(self.root, padding=(20, 0))
+        self.main_container.pack(fill='both', expand=True)
+
+        notebook = ttk.Notebook(self.main_container)
+        self.notebook = notebook
+
+        # Place toggle button overlaid on the notebook tab row (right side)
+        self.toggle_btn = ttk.Button(self.main_container, text='⏫ 收起', command=self.toggle_compact_mode)
         
         # --- TAB: Timers ---
-        self.timer_tab = ttk.Frame(notebook, padding=15)
+        self.timer_tab = ttk.Frame(notebook, padding=(15, 15))
         notebook.add(self.timer_tab, text=' 計時設定 ')
         for i in range(5):
             row = TimerRow(self.timer_tab, i, self.settings['timers'][i], self)
             self.timers.append(row)
             
         # --- TAB: Hotkeys ---
-        self.hotkey_tab = ttk.Frame(notebook, padding=25)
+        self.hotkey_tab = ttk.Frame(notebook, padding=(15, 15))
         notebook.add(self.hotkey_tab, text=' 快捷鍵管理 ')
         hotkey_inner = ttk.Frame(self.hotkey_tab)
         hotkey_inner.pack(anchor='center', expand=True)
@@ -231,29 +233,54 @@ class TimerApp:
         self._last_recorded_text = ''
 
         for i in range(5):
-             ttk.Label(hotkey_inner, text=f"快捷鍵 {i+1}:", font=self.font_bold, foreground="#56b6c2").grid(row=i, column=0, pady=10, padx=(0, 20), sticky="e")
+             ttk.Label(hotkey_inner, text=f"快捷鍵 {i+1}:", font=self.font_bold, foreground="#56b6c2").grid(row=i, column=0, pady=4, padx=(0, 20), sticky="e")
              var = tk.StringVar(value=self.settings['hotkeys'][i])
              self.hotkey_vars.append(var)
              entry = ttk.Entry(hotkey_inner, textvariable=var, font=self.font, width=20, justify='center')
-             entry.grid(row=i, column=1, pady=10, padx=10)
+             entry.grid(row=i, column=1, pady=4, padx=10)
              entry.configure(state='readonly')
              self.hotkey_entries.append(entry)
              rec_btn = ttk.Button(hotkey_inner, text='錄製', command=lambda idx=i: self.start_hotkey_recording(idx))
-             rec_btn.grid(row=i, column=2, pady=10, padx=5)
+             rec_btn.grid(row=i, column=2, pady=4, padx=5)
              self.hotkey_record_buttons.append(rec_btn)
-             ttk.Button(hotkey_inner, text='儲存', command=lambda idx=i: self.update_hotkey(idx)).grid(row=i, column=3, pady=10, padx=5)
+             ttk.Button(hotkey_inner, text='儲存', command=lambda idx=i: self.update_hotkey(idx)).grid(row=i, column=3, pady=4, padx=5)
              
         # --- TAB: Settings ---
-        self.setting_tab = ttk.Frame(notebook, padding=25)
+        self.setting_tab = ttk.Frame(notebook, padding=(15, 15))
         notebook.add(self.setting_tab, text=' 系統設定 ')
         self.setup_setting_tab()
              
         # --- TAB: About/Notes ---
-        self.note_tab = ttk.Frame(notebook, padding=25)
+        self.note_tab = ttk.Frame(notebook, padding=(15, 15))
         notebook.add(self.note_tab, text=' 說明文件 ')
         self.setup_note_tab()
              
         notebook.pack(expand=True, fill='both')
+
+        # Overlay toggle button on the notebook tab row (right-aligned)
+        self.toggle_btn.place(relx=1.0, x=-5, y=3, anchor='ne')
+
+        # Compact view frame (hidden initially) — grid-based for alignment
+        self.compact_frame = ttk.Frame(self.root)
+        self.compact_toggle_bar = ttk.Frame(self.compact_frame)
+        self.compact_toggle_bar.pack(fill='x', pady=(2, 4))
+        self.compact_toggle_btn = ttk.Button(self.compact_toggle_bar, text='⏬ 展開', command=self.toggle_compact_mode)
+        self.compact_toggle_btn.pack(anchor='center')
+
+        self.compact_grid = ttk.Frame(self.compact_frame)
+        self.compact_grid.pack(expand=True, padx=6)
+        self.compact_cells = []  # list of (icon_lbl, time_lbl, voice_lbl, notify_lbl)
+        compact_font = ("Microsoft JhengHei", 13)
+        for i in range(5):
+            icon_lbl = ttk.Label(self.compact_grid, text="", font=compact_font, width=2, anchor='center')
+            time_lbl = ttk.Label(self.compact_grid, text="", font=compact_font, anchor='center')
+            voice_lbl = ttk.Label(self.compact_grid, text="", font=compact_font, width=2, anchor='center')
+            notify_lbl = ttk.Label(self.compact_grid, text="", font=compact_font, width=2, anchor='center')
+            icon_lbl.grid(row=i, column=0)
+            time_lbl.grid(row=i, column=1)
+            voice_lbl.grid(row=i, column=2)
+            notify_lbl.grid(row=i, column=3)
+            self.compact_cells.append((icon_lbl, time_lbl, voice_lbl, notify_lbl))
 
     def setup_setting_tab(self):
         setting_inner = ttk.Frame(self.setting_tab)
@@ -466,7 +493,46 @@ class TimerApp:
             self.settings['timers'][i] = self.timers[i].get_settings()
         config.save_settings(self.settings)
 
+    def toggle_compact_mode(self):
+        x = self.root.winfo_x()
+        y = self.root.winfo_y()
+        if self.is_compact:
+            # Expand back to normal
+            self.compact_frame.pack_forget()
+            self.main_container.pack(fill='both', expand=True)
+            self.toggle_btn.configure(text='⏫ 收起')
+            self.root.geometry(f"925x300+{x}+{y}")
+            self.root.resizable(False, False)
+            self.is_compact = False
+        else:
+            # Collapse to compact
+            self.main_container.pack_forget()
+            self.compact_frame.pack(fill='both', expand=True)
+            self.root.geometry(f"290x195+{x}+{y}")
+            self.root.resizable(False, False)
+            self.is_compact = True
+            self.update_compact_view()
+
+    def update_compact_view(self):
+        if not self.is_compact:
+            return
+        for i, timer in enumerate(self.timers):
+            h = timer.hour_var.get().zfill(2)
+            m = timer.minute_var.get().zfill(2)
+            s = timer.second_var.get().zfill(2)
+            running_icon = "⏳" if timer.core.running else "\u3000"
+            voice_icon = "🔊" if timer.play_voice_var.get() else "🔇"
+            notify_icon = "🔔" if timer.notify_os_var.get() else "🔕"
+            time_text = f"{h}小{m}分{s}秒"
+            icon_lbl, time_lbl, voice_lbl, notify_lbl = self.compact_cells[i]
+            icon_lbl.configure(text=running_icon)
+            time_lbl.configure(text=time_text)
+            voice_lbl.configure(text=voice_icon)
+            notify_lbl.configure(text=notify_icon)
+
     def start_tick_loop(self):
         for timer in self.timers:
             timer.tick()
+        if self.is_compact:
+            self.update_compact_view()
         self.root.after(100, self.start_tick_loop)
