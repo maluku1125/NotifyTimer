@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('ding.wav', '.'), ('bug.ico', '.')]
+datas = [('assets/ding.wav', '.'), ('assets/bug.ico', '.')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('sv_ttk')
@@ -45,4 +45,4 @@ exe = EXE(pyz,
           target_arch=None,
           codesign_identity=None,
           entitlements_file=None,
-          icon='bug.ico' )
+          icon='assets/bug.ico' )
