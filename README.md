@@ -1,5 +1,7 @@
 # NotifyTimer ⏰
 
+![demo](assets/demo.png)
+
 倒計時提醒工具，支援多組計時器、語音播報、Windows 系統通知與全域快捷鍵。
 
 ## 功能
@@ -29,37 +31,6 @@ pip install -r requirements.txt
 | `gTTS` | Google 文字轉語音 |
 | `winotify` | Windows 推播通知 |
 
-## 使用方式
-
-```bash
-python main.py
-```
-
-## 打包為 EXE
-
-```bash
-python build_exe.py
-```
-
-打包完成後，執行檔位於 `dist/NotifyTimer.exe`。
-
-## 專案結構
-
-```
-NotifyTimer/
-├── main.py            # 程式入口
-├── build_exe.py       # PyInstaller 打包腳本
-├── assets/            # 靜態素材
-│   ├── bug.ico        # 應用程式圖標
-│   └── ding.wav       # 提示音效
-└── core/              # 功能模組
-    ├── __init__.py
-    ├── ui.py           # UI 介面 (TimerApp, TimerRow)
-    ├── audio.py        # 音效與語音播報
-    ├── config.py       # 設定檔管理
-    ├── notifier.py     # Windows 系統通知
-    └── timer_core.py   # 計時邏輯核心
-```
 
 ## 作者
 
