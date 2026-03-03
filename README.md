@@ -1,6 +1,7 @@
 # NotifyTimer ⏰
 
 ![demo](assets/demo.png)
+![demo2](assets/demo2.png)
 
 倒計時提醒工具，支援多組計時器、語音播報、Windows 系統通知與全域快捷鍵。
 
@@ -13,12 +14,6 @@
 - **深色/淺色主題** — 可在系統設定中切換
 - **迷你模式** — 一鍵收合為精簡視窗
 - **設定持久化** — 計時器與快捷鍵設定自動儲存
-
-## 安裝
-
-```bash
-pip install -r requirements.txt
-```
 
 ### 相依套件
 
