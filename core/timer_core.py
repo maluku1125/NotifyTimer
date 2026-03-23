@@ -45,5 +45,20 @@ class TimerCore:
         mins, secs = divmod(remainder, 60)
         return f"{hours:02d}", f"{mins:02d}", f"{secs:02d}"
 
+    def restart(self):
+        """將計時器重置回原始設定時間，從現在重新倒數。"""
+        if not self.running:
+            return False
+        try:
+            total_seconds = (int(self.original_hours) * 3600
+                             + int(self.original_minutes) * 60
+                             + int(self.original_seconds))
+        except ValueError:
+            return False
+        if total_seconds <= 0:
+            return False
+        self.target_time = time.time() + total_seconds
+        return True
+
     def reset(self):
         self.running = False

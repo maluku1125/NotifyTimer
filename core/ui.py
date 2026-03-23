@@ -179,6 +179,7 @@ class TimerApp:
         self.font_title = ("Microsoft JhengHei", 16, "bold")
 
         self.app_config = config.load_app_config()
+        self.refresh_mode = self.app_config.get('refresh_mode', False)
         sv_ttk.set_theme(self.app_config.get('theme', 'dark'))
         
         self.apply_custom_styles()
@@ -302,10 +303,18 @@ class TimerApp:
         self.theme_var = tk.StringVar(value=self.app_config.get('theme', 'dark'))
         ttk.Radiobutton(theme_frame, text="深色 (Dark)", variable=self.theme_var, value="dark").pack(side='left', padx=(0, 15))
         ttk.Radiobutton(theme_frame, text="淺色 (Light)", variable=self.theme_var, value="light").pack(side='left')
+
+        # Refresh Mode
+        ttk.Label(setting_inner, text="時間刷新模式:", font=self.font_bold, foreground="#56b6c2").grid(row=2, column=0, pady=15, padx=(0, 20), sticky="e")
+        refresh_frame = ttk.Frame(setting_inner)
+        refresh_frame.grid(row=2, column=1, pady=15, padx=10, sticky="w")
+        self.refresh_mode_var = tk.BooleanVar(value=self.app_config.get('refresh_mode', False))
+        ttk.Checkbutton(refresh_frame, text="啟用", variable=self.refresh_mode_var, style="Toggle.TButton").pack(side='left', padx=(0, 10))
+        ttk.Label(refresh_frame, text="按下快捷鍵時，若計時器已在倒數，重置回設定時間", font=self.font, foreground="#9da5b4").pack(side='left')
         
         # Apply button
         btn_frame = ttk.Frame(setting_inner)
-        btn_frame.grid(row=2, column=0, columnspan=3, pady=(30, 0))
+        btn_frame.grid(row=3, column=0, columnspan=3, pady=(30, 0))
         ttk.Button(btn_frame, text="儲存並套用設定", style="Accent.TButton", command=self.apply_settings, width=15).pack()
 
     def browse_save_path(self):
@@ -316,6 +325,7 @@ class TimerApp:
     def apply_settings(self):
         new_theme = self.theme_var.get()
         new_path = self.save_path_var.get()
+        new_refresh_mode = self.refresh_mode_var.get()
         
         # Apply theme immediately
         sv_ttk.set_theme(new_theme)
@@ -324,6 +334,8 @@ class TimerApp:
         # Save config
         self.app_config['theme'] = new_theme
         self.app_config['save_path'] = new_path
+        self.app_config['refresh_mode'] = new_refresh_mode
+        self.refresh_mode = new_refresh_mode
         if config.save_app_config(self.app_config):
             self.save_current_settings()
             messagebox.showinfo("成功", "系統設定已儲存並套用！\n若更改了儲存資料夾，設定也已在新資料夾同步。")
@@ -357,7 +369,13 @@ class TimerApp:
 
     def register_hotkey(self, index, hotkey):
         def on_hotkey():
-            self.root.after(0, self.timers[index].start)
+            def trigger():
+                timer = self.timers[index]
+                if self.refresh_mode_var.get() and timer.core.running:
+                    timer.core.restart()
+                else:
+                    timer.start()
+            self.root.after(0, trigger)
             
         try:
              keyboard.add_hotkey(hotkey, on_hotkey)

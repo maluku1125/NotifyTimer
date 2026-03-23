@@ -7,7 +7,8 @@ APP_CONFIG_FILE = 'app_config.json'
 def get_default_app_config():
     return {
         'save_path': os.getcwd(),
-        'theme': 'dark'
+        'theme': 'dark',
+        'refresh_mode': False
     }
 
 def load_app_config():
